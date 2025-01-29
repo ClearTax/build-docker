@@ -17,6 +17,7 @@ inputs:
   dockerfile:
     description: 'Dockerfile path'
     required: true
+    default: 'Dockerfile'
   version:
     description: 'The version of the artifact'
     required: true
