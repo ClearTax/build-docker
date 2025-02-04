@@ -21,6 +21,10 @@ inputs:
   version:
     description: 'The version of the artifact'
     required: true
+  build_args:
+    description: 'Build arguments'
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -50,6 +54,7 @@ runs:
         context: .
         file: ${{ inputs.dockerfile }}
         tags: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.service }}:${{ inputs.version }}
+        build-args: ${{ inputs.build_args }}
         push: true
         cache-from: type=gha, scope=${{ github.workflow }}
         cache-to: type=gha, mode=max, scope=${{ github.workflow }}
