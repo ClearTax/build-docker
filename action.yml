@@ -25,11 +25,16 @@ inputs:
     description: 'Build arguments'
     required: false
     default: ''
+  download_artifact:
+    description: 'Download artifact'
+    required: false
+    default: 'true'
 
 runs:
   using: composite
   steps:
     - name: Fetch Artifacts
+      if : ${{ inputs.download_artifact == 'true' }}
       uses: actions/download-artifact@v4
       with:
         name: artifacts-${{github.run_id}}
