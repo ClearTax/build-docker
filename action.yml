@@ -55,7 +55,7 @@ runs:
       uses: aws-actions/amazon-ecr-login@v1
     
     - name: Set up QEMU
-      if: ${{ inputs.multi_arch }}
+      if: ${{ inputs.multi_arch == 'true' }}
       uses: docker/setup-qemu-action@v3
     
     - name: Set up Docker Buildx
@@ -71,4 +71,4 @@ runs:
         push: true
         cache-from: type=gha, scope=${{ github.workflow }}
         cache-to: type=gha, mode=max, scope=${{ github.workflow }}
-        platforms: ${{ inputs.multi_arch && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+        platforms: ${{ inputs.multi_arch == 'true' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
