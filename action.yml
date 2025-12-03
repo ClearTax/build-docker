@@ -33,6 +33,10 @@ inputs:
     description: 'Build multi arch image: linux/amd64,linux/arm64'
     required: false
     default: 'false'
+  target_arch:
+    description: 'Desired architechture for your docker image'
+    default: 'linux/amd64'
+    required: false
 
 runs:
   using: composite
@@ -71,4 +75,4 @@ runs:
         push: true
         cache-from: type=gha, scope=${{ github.workflow }}
         cache-to: type=gha, mode=max, scope=${{ github.workflow }}
-        platforms: ${{ inputs.multi_arch == 'true' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+        platforms: ${{ inputs.multi_arch == 'true' && 'linux/amd64,linux/arm64' || inputs.target_arch }}
