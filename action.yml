@@ -37,6 +37,10 @@ inputs:
     description: 'Desired architechture for your docker image'
     default: 'linux/amd64'
     required: false
+  context:
+    description: 'Docker build context path'
+    required: false
+    default: '.'
 
 runs:
   using: composite
@@ -68,7 +72,7 @@ runs:
     - name: Build Docker - ${{ inputs.service }}
       uses: docker/build-push-action@v6
       with:
-        context: .
+        context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile }}
         tags: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.service }}:${{ inputs.version }}
         build-args: ${{ inputs.build_args }}
