@@ -41,6 +41,14 @@ inputs:
     description: 'Docker build context path'
     required: false
     default: '.'
+  target:
+    description: 'Docker build target stage (for multi-stage builds)'
+    required: false
+    default: ''
+  additional_tags:
+    description: 'Additional tags to push (newline-separated)'
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -74,8 +82,11 @@ runs:
       with:
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile }}
-        tags: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.service }}:${{ inputs.version }}
+        tags: |
+          ${{ steps.login-ecr.outputs.registry }}/${{ inputs.service }}:${{ inputs.version }}
+          ${{ inputs.additional_tags }}
         build-args: ${{ inputs.build_args }}
+        target: ${{ inputs.target }}
         push: true
         cache-from: type=gha, scope=${{ github.workflow }}
         cache-to: type=gha, mode=max, scope=${{ github.workflow }}
