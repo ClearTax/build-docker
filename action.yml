@@ -84,7 +84,7 @@ runs:
         file: ${{ inputs.dockerfile }}
         tags: |
           ${{ steps.login-ecr.outputs.registry }}/${{ inputs.service }}:${{ inputs.version }}
-          ${{ inputs.additional_tags }}
+          ${{ inputs.additional_tags != '' && format('{0}/{1}:{2}', steps.login-ecr.outputs.registry, inputs.service, inputs.additional_tags) || '' }}
         build-args: ${{ inputs.build_args }}
         target: ${{ inputs.target }}
         push: true
