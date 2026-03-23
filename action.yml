@@ -79,6 +79,8 @@ runs:
     
     - name: Build Docker - ${{ inputs.service }}
       uses: docker/build-push-action@v6
+      env:
+        DOCKER_BUILD_SUMMARY: "false"
       with:
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile }}
