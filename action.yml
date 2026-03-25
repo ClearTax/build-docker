@@ -55,12 +55,12 @@ runs:
   steps:
     - name: Fetch Artifacts
       if : ${{ inputs.download_artifact == 'true' }}
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
       with:
         name: artifacts-${{github.run_id}}
     
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@6a64f289c4a4b67a1e2c44cc4bd9d6f7bc59b156  # v1
       with:
         aws-access-key-id: ${{ inputs.aws_access_key_id }}
         aws-secret-access-key: ${{ inputs.aws_secret_access_key }}
@@ -68,17 +68,17 @@ runs:
     
     - name: Login to Amazon ECR
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7  # v1
     
     - name: Set up QEMU
       if: ${{ inputs.multi_arch == 'true' }}
-      uses: docker/setup-qemu-action@v3
+      uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130  # v3
     
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3
     
     - name: Build Docker - ${{ inputs.service }}
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6
       env:
         DOCKER_BUILD_SUMMARY: "false"
       with:
