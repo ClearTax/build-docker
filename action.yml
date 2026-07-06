@@ -33,6 +33,10 @@ inputs:
     description: 'Build multi arch image: linux/amd64,linux/arm64'
     required: false
     default: 'false'
+  cache_type:
+    description: 'Layer cache backend: gha (GitHub Actions cache) or registry (ECR :buildcache tag next to the image; unlimited size, not subject to the 10 GB per-repo GHA cache pool)'
+    required: false
+    default: 'gha'
   target_arch:
     description: 'Desired architechture for your docker image'
     default: 'linux/amd64'
@@ -99,8 +103,10 @@ runs:
         build-args: ${{ inputs.build_args }}
         target: ${{ inputs.target }}
         push: true
-        cache-from: type=gha,scope=${{ github.workflow }}-${{ github.job }}
-        cache-to:   type=gha,scope=${{ github.workflow }}-${{ github.job }},mode=max
+        # cache_type=registry keeps the cache as a :buildcache tag in the service's own ECR repo
+        # (image-manifest+oci required for ECR to accept cache manifests). gha path is unchanged.
+        cache-from: ${{ inputs.cache_type == 'registry' && format('type=registry,ref={0}/{1}:buildcache', steps.login-ecr.outputs.registry, inputs.service) || format('type=gha,scope={0}-{1}', github.workflow, github.job) }}
+        cache-to: ${{ inputs.cache_type == 'registry' && format('type=registry,ref={0}/{1}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true', steps.login-ecr.outputs.registry, inputs.service) || format('type=gha,scope={0}-{1},mode=max', github.workflow, github.job) }}
         platforms: ${{ inputs.multi_arch == 'true' && 'linux/amd64,linux/arm64' || inputs.target_arch }}
         secrets: ${{ inputs.secrets }}
         secret-envs: ${{ inputs.secret-envs }}
