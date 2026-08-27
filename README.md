@@ -36,6 +36,7 @@ This action streamlines the process of building Docker images and pushing them t
 | `build_args` | Build arguments to pass to Docker build | `''` (empty) |
 | `download_artifact` | Whether to download artifacts before building | `true` |
 | `multi_arch` | Build multi-arch image (`linux/amd64,linux/arm64`) | `false` |
+| `cache_type` | Layer cache backend: `gha` (GitHub Actions cache) or `registry` (ECR `:buildcache` tag in the service's own repo — not ref-scoped, so it's reused across branches/tags/deploys) | `gha` |
 | `target_arch` | Desired architecture for your Docker image | `linux/amd64` |
 | `context` | Docker build context path | `.` |
 | `target` | Docker build target stage (for multi-stage builds) | `''` (empty) |
@@ -133,7 +134,7 @@ RUN --mount=type=secret,id=npmrc,target=/root/.npmrc \
 
 ## Caching
 
-This action utilizes GitHub Actions cache for Docker layers, which significantly speeds up subsequent builds by reusing previously built layers.
+This action defaults to the GitHub Actions cache (`type=gha`) for Docker layers. GHA cache reads are scoped to the writing ref (or the default branch) — workflows that build on a per-tag or per-branch ref (release/deploy pipelines) will see a permanent cache miss on `gha`. Set `cache_type: registry` to instead cache layers as a `:buildcache` tag in the service's own ECR repo, which has no ref isolation and is shared across all builds of that service.
 
 ## Notes
 
