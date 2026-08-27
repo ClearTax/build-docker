@@ -33,6 +33,10 @@ inputs:
     description: 'Build multi arch image: linux/amd64,linux/arm64'
     required: false
     default: 'false'
+  cache_type:
+    description: 'Layer cache backend: gha (GitHub Actions cache, default) or registry (ECR :buildcache tag in the service repo). GHA cache reads are restricted to the writing ref/default branch, so builds on per-tag or per-branch refs (release/deploy pipelines) get a 0% hit rate on gha. registry has no ref isolation and is reused across dev and release builds.'
+    required: false
+    default: 'gha'
   target_arch:
     description: 'Desired architechture for your docker image'
     default: 'linux/amd64'
@@ -99,8 +103,15 @@ runs:
         build-args: ${{ inputs.build_args }}
         target: ${{ inputs.target }}
         push: true
-        cache-from: type=gha,scope=${{ github.workflow }}-${{ github.job }}
-        cache-to:   type=gha,scope=${{ github.workflow }}-${{ github.job }},mode=max,ignore-error=true
+        # cache_type=registry stores the layer cache as a :buildcache tag in the service's own
+        # ECR repo instead of the GitHub Actions cache. GHA cache reads are restricted to the
+        # writing ref (or the default branch); workflows that build on a per-tag/per-branch ref
+        # (release/deploy pipelines) get a 0% hit rate on type=gha by design, while every run still
+        # pays the mode=max export cost for a cache nothing can read back. Registry cache has no
+        # ref isolation, so dev and release builds share it. image-manifest/oci-mediatypes are
+        # required for ECR to accept cache manifests. gha path (default) is unchanged.
+        cache-from: ${{ inputs.cache_type == 'registry' && format('type=registry,ref={0}/{1}:buildcache', steps.login-ecr.outputs.registry, inputs.service) || format('type=gha,scope={0}-{1}', github.workflow, github.job) }}
+        cache-to: ${{ inputs.cache_type == 'registry' && format('type=registry,ref={0}/{1}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true', steps.login-ecr.outputs.registry, inputs.service) || format('type=gha,scope={0}-{1},mode=max,ignore-error=true', github.workflow, github.job) }}
         platforms: ${{ inputs.target_arch }}
         secrets: ${{ inputs.secrets }}
         secret-envs: ${{ inputs.secret-envs }}
