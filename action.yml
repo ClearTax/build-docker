@@ -58,6 +58,14 @@ inputs:
   secret-files:
     description: "List of secret files to expose to the build (e.g., key=filename, MY_SECRET=./secret.txt)"
     required: false
+  cache_mode:
+    description: "Layer-cache backend: gha (default), registry (ECR), or none"
+    required: false
+    default: 'gha'
+  cache_ref:
+    description: "Cache image ref when cache_mode=registry. Defaults to <ecr>/<service>:buildcache"
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -86,6 +94,37 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
     
+    # The gha backend charges the full layer upload on every build and is capped at
+    # 10GB per repo, so on a repo with large images the entries evict before the next
+    # run reads them — measured on clarity-mcp-server: 16m40s to export, 0 cache hits.
+    # `registry` keeps the same mode=max reuse in ECR, which has no cap.
+    - name: Resolve build cache spec
+      id: cache
+      shell: bash
+      env:
+        MODE: ${{ inputs.cache_mode }}
+        REF: ${{ inputs.cache_ref }}
+        REG: ${{ steps.login-ecr.outputs.registry }}
+        SERVICE: ${{ inputs.service }}
+        SCOPE: ${{ github.workflow }}-${{ github.job }}-${{ inputs.target_arch }}
+      run: |
+        set -euo pipefail
+        case "$MODE" in
+          none)
+            echo "from=" >> "$GITHUB_OUTPUT"
+            echo "to=" >> "$GITHUB_OUTPUT"
+            ;;
+          registry)
+            ref="${REF:-${REG}/${SERVICE}:buildcache}"
+            echo "from=type=registry,ref=${ref}" >> "$GITHUB_OUTPUT"
+            echo "to=type=registry,ref=${ref},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true" >> "$GITHUB_OUTPUT"
+            ;;
+          *)
+            echo "from=type=gha,scope=${SCOPE}" >> "$GITHUB_OUTPUT"
+            echo "to=type=gha,scope=${SCOPE},mode=max,ignore-error=true" >> "$GITHUB_OUTPUT"
+            ;;
+        esac
+
     - name: Build Docker - ${{ inputs.service }}
       uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
       env:
@@ -99,8 +138,8 @@ runs:
         build-args: ${{ inputs.build_args }}
         target: ${{ inputs.target }}
         push: true
-        cache-from: type=gha,scope=${{ github.workflow }}-${{ github.job }}
-        cache-to:   type=gha,scope=${{ github.workflow }}-${{ github.job }},mode=max,ignore-error=true
+        cache-from: ${{ steps.cache.outputs.from }}
+        cache-to:   ${{ steps.cache.outputs.to }}
         platforms: ${{ inputs.target_arch }}
         secrets: ${{ inputs.secrets }}
         secret-envs: ${{ inputs.secret-envs }}
