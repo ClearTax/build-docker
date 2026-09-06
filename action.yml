@@ -110,7 +110,10 @@ runs:
         REF: ${{ inputs.cache_ref }}
         REG: ${{ steps.login-ecr.outputs.registry }}
         SERVICE: ${{ inputs.service }}
-        SCOPE: ${{ github.workflow }}-${{ github.job }}-${{ inputs.target_arch }}
+        # Unchanged from before this PR. Note it omits target_arch, so both legs of a
+        # multi-arch matrix share one scope and evict each other — a pre-existing issue,
+        # left alone here so no existing caller's cache key moves.
+        SCOPE: ${{ github.workflow }}-${{ github.job }}
         COMPRESSION: ${{ inputs.image_compression }}
       run: |
         set -euo pipefail
