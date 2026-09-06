@@ -66,6 +66,10 @@ inputs:
     description: "Cache image ref when cache_mode=registry. Defaults to <ecr>/<service>:buildcache"
     required: false
     default: ''
+  image_compression:
+    description: "Layer compression codec, e.g. zstd. Empty (default) keeps buildx's gzip."
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -107,6 +111,7 @@ runs:
         REG: ${{ steps.login-ecr.outputs.registry }}
         SERVICE: ${{ inputs.service }}
         SCOPE: ${{ github.workflow }}-${{ github.job }}-${{ inputs.target_arch }}
+        COMPRESSION: ${{ inputs.image_compression }}
       run: |
         set -euo pipefail
         case "$MODE" in
@@ -125,6 +130,18 @@ runs:
             ;;
         esac
 
+        # `push: true` and `outputs` both become --output, so only one may be set.
+        # Empty compression => no `outputs` and the step keeps `push: true` (today's
+        # behaviour, byte for byte). A codec => we own the output line and carry
+        # push=true inside it. force-compression recompresses base layers too, which
+        # costs export time but is what makes the node-side pull faster; that is the
+        # point on services whose rollout is pull-bound.
+        if [ -n "${COMPRESSION:-}" ]; then
+          echo "image_output=type=image,compression=${COMPRESSION},force-compression=true,push=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "image_output=" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Build Docker - ${{ inputs.service }}
       uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
       env:
@@ -137,7 +154,8 @@ runs:
           ${{ inputs.additional_tags != '' && format('{0}/{1}:{2}', steps.login-ecr.outputs.registry, inputs.service, inputs.additional_tags) || '' }}
         build-args: ${{ inputs.build_args }}
         target: ${{ inputs.target }}
-        push: true
+        push: ${{ inputs.image_compression == '' }}
+        outputs: ${{ steps.cache.outputs.image_output }}
         cache-from: ${{ steps.cache.outputs.from }}
         cache-to:   ${{ steps.cache.outputs.to }}
         platforms: ${{ inputs.target_arch }}
