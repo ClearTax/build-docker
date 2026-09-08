@@ -127,9 +127,15 @@ runs:
             echo "from=type=registry,ref=${ref}" >> "$GITHUB_OUTPUT"
             echo "to=type=registry,ref=${ref},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true" >> "$GITHUB_OUTPUT"
             ;;
-          *)
+          gha)
             echo "from=type=gha,scope=${SCOPE}" >> "$GITHUB_OUTPUT"
             echo "to=type=gha,scope=${SCOPE},mode=max,ignore-error=true" >> "$GITHUB_OUTPUT"
+            ;;
+          *)
+            # Not a silent fallback to gha: a typo would leave the caller believing
+            # they had the registry cache while still paying the gha export.
+            echo "::error title=build-docker::cache_mode must be gha, registry or none (got '${MODE}')" >&2
+            exit 1
             ;;
         esac
 
