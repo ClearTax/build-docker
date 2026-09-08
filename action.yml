@@ -134,16 +134,26 @@ runs:
         esac
 
         # `push: true` and `outputs` both become --output, so only one may be set.
-        # Empty compression => no `outputs` and the step keeps `push: true` (today's
-        # behaviour, byte for byte). A codec => we own the output line and carry
-        # push=true inside it. force-compression recompresses base layers too, which
-        # costs export time but is what makes the node-side pull faster; that is the
-        # point on services whose rollout is pull-bound.
+        # Empty => no `outputs`, and the build step keeps `push: true` unchanged.
+        # A codec => we own the output line and must carry push=true inside it, since
+        # setting `outputs` turns `push` off. force-compression recompresses base
+        # layers too: it costs export time but is what makes the node-side pull
+        # faster, which is the point on services whose rollout is pull-bound.
         if [ -n "${COMPRESSION:-}" ]; then
-          echo "image_output=type=image,compression=${COMPRESSION},force-compression=true,push=true" >> "$GITHUB_OUTPUT"
+          image_output="type=image,compression=${COMPRESSION},force-compression=true,push=true"
         else
-          echo "image_output=" >> "$GITHUB_OUTPUT"
+          image_output=""
         fi
+
+        # The build step derives `push` from this same value, so the two can never
+        # disagree. Anything that populates image_output MUST push, or the build
+        # would go green having published nothing — assert it here rather than
+        # leaving that to whoever adds the next exporter.
+        if [ -n "$image_output" ] && [[ "$image_output" != *"push=true"* ]]; then
+          echo "::error title=build-docker::image_output is set but omits push=true; the image would not be published" >&2
+          exit 1
+        fi
+        echo "image_output=${image_output}" >> "$GITHUB_OUTPUT"
 
     - name: Build Docker - ${{ inputs.service }}
       uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
@@ -157,7 +167,9 @@ runs:
           ${{ inputs.additional_tags != '' && format('{0}/{1}:{2}', steps.login-ecr.outputs.registry, inputs.service, inputs.additional_tags) || '' }}
         build-args: ${{ inputs.build_args }}
         target: ${{ inputs.target }}
-        push: ${{ inputs.image_compression == '' }}
+        # Derived from image_output, not from an input, so `push` and `outputs` share
+        # one source and cannot both end up set or both unset.
+        push: ${{ steps.cache.outputs.image_output == '' }}
         outputs: ${{ steps.cache.outputs.image_output }}
         cache-from: ${{ steps.cache.outputs.from }}
         cache-to:   ${{ steps.cache.outputs.to }}
